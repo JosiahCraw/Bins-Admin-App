@@ -85,6 +85,7 @@ def addBinsToCheckList(db, top, storage):
         db.collection(u'bins').document(bin).update({u'image': imageName})
 
     def deployToBins():
+        selected = list()
         for key, value in checkButtonsStates.items():
             print(key + ":" + str(value.get()))
             if value.get() == 1:
