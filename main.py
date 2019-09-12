@@ -10,7 +10,6 @@ import google.cloud.exceptions
 
 fullNumber = 0
 updateFull = True
-moreBins = True
 checkButtonsStates = dict()
 running = True
 
@@ -36,7 +35,8 @@ def getEmptyBins(db, listBox):
     listBox.delete(0, fullNumber)
     for bin in emptyBin:
         if bin.id != "Empty":
-            listBox.insert(fullNumber, bin.id)
+            binId = (bin.id).strip()
+            listBox.insert(fullNumber, binId)
             fullNumber += 1
 
 
@@ -50,28 +50,26 @@ def fullSnapshot(col_snapshot, changes, read_time):
     updateFull = True
 
 
-def binsChangedSnapshot(col_snapshot, changes, read_time):
-    global moreBins
-    moreBins = True
-
-
 def getImages(storage):
     images = storage.list_blobs()
     return images
 
 
 def addBinsToCheckList(db, top, storage):
-    row = 2
+    row = 4
     bins = getAllBins(db)
     global checkButtonsStates
     checkButtonsStates.clear()
     for bin in bins:
-        checkButtonsStates[bin.id] = IntVar()
-        checkButton = Checkbutton(text=bin.id, variable=checkButtonsStates[bin.id]).grid(row=row, column=2)
+        binId = bin.id
+        binId.rstrip()
+        checkButtonsStates[binId] = IntVar()
+        checkButton = Checkbutton(text=binId, variable=checkButtonsStates[binId]).grid(row=row,
+                column=0)
         row += 1
 
     selectLabel = Label(top, text="Select Image To deploy")
-    selectLabel.grid(row=row, column=2)
+    selectLabel.grid(row=row, column=0)
     row+=1
 
     images = getImages(storage)
@@ -99,20 +97,21 @@ def addBinsToCheckList(db, top, storage):
 
     for image in images:
         radioButton = Radiobutton(top, text=image.name, variable=radioButtonVar, value=image.name)
-        radioButton.grid(row=row, column=2)
+        radioButton.grid(row=row, column=0)
         row += 1
 
     deployButton = Button(text="Deploy", command=deployToBins)
-    deployButton.grid(row=row, column=2)
+    deployButton.grid(row=row, column=0)
     row += 1
 
 
 def dispClickedInfo(db, labelVar, binID):
-    doc = db.collection(u'bins').document(binID)
-
+    binID.rstrip()
+    doc = db.collection(u'bins').document(binID).get()
+    print(doc)
     try:
-        info = doc.get()
-        infoDict = info.to_dict()
+        infoDict = doc.to_dict()
+        print(infoDict)
         name = infoDict["name"]
         location = infoDict["location"]
         print("Name: " + name + " Location: " + location)
@@ -145,27 +144,21 @@ def main():
         getEmptyBins(db, listbox)
         updateFull = False
 
-    topLabel = Label(top, text="Bins Select to deploy").grid(row=1, column=2)
+    topLabel = Label(top, text="Bins Select to deploy").grid(row=3, column=0)
 
-    global moreBins
-    if moreBins:
-        addBinsToCheckList(db, top, storage)
-        moreBins = False
+    addBinsToCheckList(db, top, storage)
 
     fullQuery = db.collection(u'fullBins').on_snapshot(fullSnapshot)
-
-    binsQuery = db.collection(u'bins').on_snapshot(binsChangedSnapshot)
 
     def onClick(event):
         w = event.widget
         output = w.curselection()
-
-        if len(output) <= 1:
-            index = 0
-        else:
-            index = output[0]
-
+        print(output)
+        index = output[0]
+        print(index)
         binID = w.get(index)
+        binID.rstrip()
+        print(binID)
         dispClickedInfo(db, infoVar, binID)
 
     listbox.bind('<<ListboxSelect>>', onClick)
@@ -180,14 +173,9 @@ def main():
             getEmptyBins(db, listbox)
             updateFull = False
 
-        if moreBins:
-            addBinsToCheckList(db, top, storage)
-            moreBins = False
-
     top.quit()
 
     fullQuery.unsubscribe()
-    binsQuery.unsubscribe()
 
 
 main()
